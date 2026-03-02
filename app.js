@@ -67,6 +67,9 @@ import Svg, {
   Circle as SvgCircle,
 } from "react-native-svg";
 import { createClient } from "@supabase/supabase-js";
+import LoginScreen from "./src/screens/LoginScreen";
+import ForgotPasswordScreen from "./src/screens/ForgotPasswordScreen";
+import { createAuthStyles } from "./src/auth/authStyles";
 
 let Purchases = null;
 let PurchasesLogLevel = null;
@@ -2377,387 +2380,7 @@ function UpgradeCallout({ title, description, onUpgrade, style, icon = "sparkles
   );
 }
 
-const loginStyles = StyleSheet.create({
-  gradient: {
-    flex: 1,
-  },
-  container: {
-    flexGrow: 1,
-    padding: theme.space(2.5),
-    justifyContent: "center",
-  },
-  card: {
-    backgroundColor: palette.card,
-    borderRadius: theme.radius,
-    borderWidth: 1,
-    borderColor: palette.border,
-    padding: theme.space(2.5),
-    shadowColor: palette.goldDeep,
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 6,
-  },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: theme.space(1.5),
-  },
-  title: {
-    fontFamily: fonts.title,
-    fontSize: 28,
-    color: palette.ink,
-    marginLeft: theme.space(1),
-  },
-  subtitle: {
-    fontFamily: fonts.body,
-    fontSize: 15,
-    color: palette.inkMuted,
-    lineHeight: 22,
-    marginBottom: theme.space(2),
-  },
-  label: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 14,
-    color: palette.ink,
-    marginTop: theme.space(1.5),
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: palette.border,
-    borderRadius: theme.radius,
-    paddingHorizontal: theme.space(1.5),
-    paddingVertical: theme.space(1),
-    backgroundColor: palette.white,
-    fontFamily: fonts.body,
-    fontSize: 16,
-    color: palette.ink,
-  },
-  helperText: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: palette.inkMuted,
-    marginTop: theme.space(1),
-  },
-  buttonRow: {
-    marginTop: theme.space(2.5),
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  button: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: theme.space(1.25),
-    borderRadius: theme.radius,
-    borderWidth: 1,
-    marginHorizontal: theme.space(0.5),
-  },
-  buttonPrimary: {
-    backgroundColor: palette.gold,
-    borderColor: palette.gold,
-  },
-  buttonSecondary: {
-    backgroundColor: palette.white,
-    borderColor: palette.gold,
-  },
-  buttonTextPrimary: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 16,
-    color: palette.white,
-  },
-  buttonTextSecondary: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 16,
-    color: palette.gold,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: theme.space(2),
-  },
-  modalCard: {
-    backgroundColor: palette.card,
-    borderRadius: theme.radius,
-    borderWidth: 1,
-    borderColor: palette.border,
-    padding: theme.space(2.5),
-    shadowColor: palette.goldDeep,
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 6,
-    width: "100%",
-    maxWidth: 420,
-  },
-  modalTitle: {
-    fontFamily: fonts.title,
-    fontSize: 22,
-    color: palette.ink,
-    marginBottom: theme.space(1),
-  },
-  modalMessage: {
-    fontFamily: fonts.body,
-    fontSize: 15,
-    color: palette.ink,
-    lineHeight: 22,
-  },
-});
-
-const loginGradientColors = [
-  palette.parchmentA,
-  palette.parchmentB,
-  palette.parchmentGold,
-];
-
-function LoginScreen() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [mode, setMode] = useState(null);
-  const [verificationDialogVisible, setVerificationDialogVisible] = useState(false);
-  const [pendingEmail, setPendingEmail] = useState("");
-  const navigation = useNavigation();
-  const handleForgotPasswordPress = useCallback(() => {
-    navigation.navigate("ForgotPassword");
-  }, [navigation]);
-
-  const handleAuth = async (type) => {
-    if (!email.trim() || !password) {
-      Alert.alert("Missing information", "Please enter both email and password.");
-      return;
-    }
-    setSubmitting(true);
-    setMode(type);
-    try {
-      if (type === "login") {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-        });
-        if (error) throw error;
-        setPendingEmail(email.trim());
-        setVerificationDialogVisible(true);
-      }
-    } catch (error) {
-      Alert.alert(
-        type === "login" ? "Login failed" : "Sign up failed",
-        error?.message || "Please try again."
-      );
-    } finally {
-      setSubmitting(false);
-      setMode(null);
-    }
-  };
-
-  const handleCloseVerificationDialog = useCallback(() => {
-    setVerificationDialogVisible(false);
-  }, []);
-
-  return (
-    <>
-      <LinearGradient
-        colors={loginGradientColors}
-        style={loginStyles.gradient}
-        start={{ x: 0.2, y: 0 }}
-        end={{ x: 0.8, y: 1 }}
-      >
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
-        >
-          <SafeAreaView style={{ flex: 1 }}>
-            <ScrollView
-              contentContainerStyle={loginStyles.container}
-              keyboardShouldPersistTaps="handled"
-            >
-              <View style={loginStyles.card}>
-                <View style={loginStyles.titleRow}>
-                  <Ionicons name="sparkles-outline" size={28} color={palette.goldDeep} />
-                  <Text style={loginStyles.title}>Welcome Back</Text>
-                </View>
-                <Text style={loginStyles.subtitle}>
-                  Sign in or create an account to continue your journey with the I Ching.
-                </Text>
-
-                <Text style={loginStyles.label}>Email</Text>
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="you@example.com"
-                  placeholderTextColor={palette.inkMuted}
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  keyboardType="email-address"
-                  textContentType="emailAddress"
-                  style={loginStyles.input}
-                />
-
-                <Text style={loginStyles.label}>Password</Text>
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Enter a secure password"
-                  placeholderTextColor={palette.inkMuted}
-                  secureTextEntry
-                  textContentType="password"
-                  style={loginStyles.input}
-                />
-
-                <Text style={loginStyles.helperText}>
-                  Use the credentials associated with your Supabase profile.
-                </Text>
-
-                <Pressable onPress={handleForgotPasswordPress} style={{ marginBottom: theme.space(1.5) }}>
-                  <Text style={[loginStyles.helperText, { color: palette.goldDeep }]}>Forgot Password?</Text>
-                </Pressable>
-
-                <View style={loginStyles.buttonRow}>
-                  <Pressable
-                    style={[loginStyles.button, loginStyles.buttonPrimary]}
-                    onPress={() => handleAuth("login")}
-                    disabled={submitting}
-                  >
-                    {submitting && mode === "login" ? (
-                      <ActivityIndicator color={palette.white} />
-                    ) : (
-                      <Text style={loginStyles.buttonTextPrimary}>Login</Text>
-                    )}
-                  </Pressable>
-                  <Pressable
-                    style={[loginStyles.button, loginStyles.buttonSecondary]}
-                    onPress={() => handleAuth("signup")}
-                    disabled={submitting}
-                  >
-                    {submitting && mode === "signup" ? (
-                      <ActivityIndicator color={palette.gold} />
-                    ) : (
-                      <Text style={loginStyles.buttonTextSecondary}>Sign Up</Text>
-                    )}
-                  </Pressable>
-                </View>
-              </View>
-            </ScrollView>
-          </SafeAreaView>
-        </KeyboardAvoidingView>
-      </LinearGradient>
-
-      <Modal
-        transparent
-        visible={verificationDialogVisible}
-        animationType="fade"
-        onRequestClose={handleCloseVerificationDialog}
-      >
-        <View style={loginStyles.modalBackdrop}>
-          <View style={loginStyles.modalCard}>
-            <Text style={loginStyles.modalTitle}>Verify your email</Text>
-            <Text style={loginStyles.modalMessage}>
-              We have sent a verification link to {pendingEmail || "your inbox"}. Please check your
-              email and confirm your account before signing in.
-            </Text>
-            <GoldButton onPress={handleCloseVerificationDialog}>Got it</GoldButton>
-          </View>
-        </View>
-      </Modal>
-    </>
-  );
-}
-
-function ForgotPasswordScreen() {
-  const [email, setEmail] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const navigation = useNavigation();
-
-  const handleSendReset = useCallback(async () => {
-    const trimmed = email.trim();
-    const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
-    if (!trimmed || !isEmailValid) {
-      Alert.alert("Forgot Password", "Please enter a valid email address.");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
-        redirectTo: "ichinginsightsai://auth/reset",
-      });
-      if (error) throw error;
-      Alert.alert(
-        "Check your email",
-        "We sent you a password reset link. Open it on this device to continue."
-      );
-      navigation.goBack();
-    } catch (error) {
-      Alert.alert(
-        "Unable to send reset email",
-        error?.message || "Please try again."
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  }, [email, navigation]);
-
-  return (
-    <LinearGradient
-      colors={loginGradientColors}
-      style={loginStyles.gradient}
-      start={{ x: 0.2, y: 0 }}
-      end={{ x: 0.8, y: 1 }}
-    >
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
-      >
-        <SafeAreaView style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={loginStyles.container} keyboardShouldPersistTaps="handled">
-            <View style={loginStyles.card}>
-              <View style={loginStyles.titleRow}>
-                <Ionicons name="mail-unread-outline" size={28} color={palette.goldDeep} />
-                <Text style={loginStyles.title}>Forgot Password</Text>
-              </View>
-              <Text style={loginStyles.subtitle}>
-                Enter your email to receive a reset link. Password resets are only available for email/password accounts.
-              </Text>
-
-              <Text style={loginStyles.label}>Email</Text>
-              <TextInput
-                value={email}
-                onChangeText={setEmail}
-                placeholder="you@example.com"
-                placeholderTextColor={palette.inkMuted}
-                autoCapitalize="none"
-                autoComplete="email"
-                keyboardType="email-address"
-                textContentType="emailAddress"
-                style={loginStyles.input}
-              />
-
-              <GoldButton full onPress={handleSendReset} loading={submitting}>
-                Send reset link
-              </GoldButton>
-
-              <Pressable onPress={() => navigation.goBack()} style={{ marginTop: theme.space(1) }}>
-                <Text style={[loginStyles.helperText, { color: palette.goldDeep }]}>Back to Login</Text>
-              </Pressable>
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-      </KeyboardAvoidingView>
-    </LinearGradient>
-  );
-}
+const { loginStyles, loginGradientColors } = createAuthStyles({ theme, palette, fonts });
 
 function ResetPasswordScreen() {
   const [newPassword, setNewPassword] = useState("");
@@ -6615,8 +6238,32 @@ function AuthStackScreen({ passwordResetRequested = false }) {
       screenOptions={{ headerShown: false }}
       initialRouteName={passwordResetRequested ? "ResetPassword" : "Login"}
     >
-      <AuthStack.Screen name="Login" component={LoginScreen} />
-      <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <AuthStack.Screen name="Login">
+        {(props) => (
+          <LoginScreen
+            {...props}
+            supabase={supabase}
+            loginGradientColors={loginGradientColors}
+            loginStyles={loginStyles}
+            palette={palette}
+            theme={theme}
+            GoldButton={GoldButton}
+          />
+        )}
+      </AuthStack.Screen>
+      <AuthStack.Screen name="ForgotPassword">
+        {(props) => (
+          <ForgotPasswordScreen
+            {...props}
+            supabase={supabase}
+            loginGradientColors={loginGradientColors}
+            loginStyles={loginStyles}
+            palette={palette}
+            theme={theme}
+            GoldButton={GoldButton}
+          />
+        )}
+      </AuthStack.Screen>
       <AuthStack.Screen name="ResetPassword" component={ResetPasswordScreen} />
     </AuthStack.Navigator>
   );
