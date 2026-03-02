@@ -69,6 +69,7 @@ import Svg, {
 import { createClient } from "@supabase/supabase-js";
 import LoginScreen from "./src/screens/LoginScreen";
 import ForgotPasswordScreen from "./src/screens/ForgotPasswordScreen";
+import ResetPasswordScreen from "./src/screens/ResetPasswordScreen";
 import { createAuthStyles } from "./src/auth/authStyles";
 
 let Purchases = null;
@@ -2381,155 +2382,6 @@ function UpgradeCallout({ title, description, onUpgrade, style, icon = "sparkles
 }
 
 const { loginStyles, loginGradientColors } = createAuthStyles({ theme, palette, fonts });
-
-function ResetPasswordScreen() {
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  const navigation = useNavigation();
-  const { completePasswordResetFlow } = useAuth();
-
-  const handleReset = useCallback(async () => {
-    const trimmed = newPassword.trim();
-    const confirm = confirmPassword.trim();
-
-    if (!trimmed || !confirm) {
-      Alert.alert("Missing password", "Please enter and confirm your new password.");
-      return;
-    }
-
-    if (trimmed.length < 8) {
-      Alert.alert("Password too short", "Passwords must be at least 8 characters.");
-      return;
-    }
-
-    if (trimmed !== confirm) {
-      Alert.alert("Passwords do not match", "Ensure both passwords match before continuing.");
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      // IMPORTANT: do NOT check session here
-      // Supabase will validate the recovery session internally
-      const { error } = await supabase.auth.updateUser({
-        password: trimmed,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      completePasswordResetFlow();
-
-      // End recovery session cleanly
-      await supabase.auth.signOut();
-
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{ name: "Login" }],
-        })
-      );
-
-      Alert.alert("Password updated", "Please sign in with your new password.");
-    } catch (error) {
-      Alert.alert(
-        "Unable to reset password",
-        error?.message || "Request a new reset email and try again."
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  }, [
-    confirmPassword,
-    completePasswordResetFlow,
-    navigation,
-    newPassword,
-  ]);
-
-  const handleCancel = useCallback(async () => {
-    completePasswordResetFlow();
-    await supabase.auth.signOut();
-    navigation.dispatch(
-      CommonActions.reset({
-        index: 0,
-        routes: [{ name: "Login" }],
-      })
-    );
-  }, [completePasswordResetFlow, navigation]);
-
-  return (
-    <LinearGradient
-      colors={loginGradientColors}
-      style={loginStyles.gradient}
-      start={{ x: 0.2, y: 0 }}
-      end={{ x: 0.8, y: 1 }}
-    >
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
-      >
-        <SafeAreaView style={{ flex: 1 }}>
-          <ScrollView
-            contentContainerStyle={loginStyles.container}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={loginStyles.card}>
-              <View style={loginStyles.titleRow}>
-                <Ionicons
-                  name="refresh-outline"
-                  size={28}
-                  color={palette.goldDeep}
-                />
-                <Text style={loginStyles.title}>Reset Your Password</Text>
-              </View>
-
-              <Text style={loginStyles.subtitle}>
-                Choose a new password for your account.
-              </Text>
-
-              <Text style={loginStyles.label}>New Password</Text>
-              <TextInput
-                value={newPassword}
-                onChangeText={setNewPassword}
-                placeholder="Enter a secure password"
-                placeholderTextColor={palette.inkMuted}
-                secureTextEntry
-                textContentType="newPassword"
-                style={loginStyles.input}
-              />
-
-              <Text style={loginStyles.label}>Confirm New Password</Text>
-              <TextInput
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="Re-enter your new password"
-                placeholderTextColor={palette.inkMuted}
-                secureTextEntry
-                textContentType="newPassword"
-                style={loginStyles.input}
-              />
-
-              <GoldButton full onPress={handleReset} loading={submitting}>
-                Update password
-              </GoldButton>
-
-              <Pressable onPress={handleCancel} style={{ marginTop: theme.space(1) }}>
-                <Text style={[loginStyles.helperText, { color: palette.goldDeep }]}>
-                  Back to Login
-                </Text>
-              </Pressable>
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-      </KeyboardAvoidingView>
-    </LinearGradient>
-  );
-}
 
 // 🟡 Hexagram lines
 function Line({ v, moving }) {
@@ -6232,7 +6084,7 @@ const linkingConfig = {
   },
 };
 
-function AuthStackScreen({ passwordResetRequested = false }) {
+function AuthStackScreen({ passwordResetRequested = false, completePasswordResetFlow }) {
   return (
     <AuthStack.Navigator
       screenOptions={{ headerShown: false }}
@@ -6264,7 +6116,20 @@ function AuthStackScreen({ passwordResetRequested = false }) {
           />
         )}
       </AuthStack.Screen>
-      <AuthStack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+      <AuthStack.Screen name="ResetPassword">
+        {(props) => (
+          <ResetPasswordScreen
+            {...props}
+            supabase={supabase}
+            completePasswordResetFlow={completePasswordResetFlow}
+            loginGradientColors={loginGradientColors}
+            loginStyles={loginStyles}
+            palette={palette}
+            theme={theme}
+            GoldButton={GoldButton}
+          />
+        )}
+      </AuthStack.Screen>
     </AuthStack.Navigator>
   );
 }
@@ -6561,7 +6426,10 @@ export default function App() {
               linking={linkingConfig}
             >
               {passwordResetRequested || !session ? (
-                <AuthStackScreen passwordResetRequested={passwordResetRequested} />
+                <AuthStackScreen
+                  passwordResetRequested={passwordResetRequested}
+                  completePasswordResetFlow={completePasswordResetFlow}
+                />
               ) : (
                 <MainTabs />
               )}
