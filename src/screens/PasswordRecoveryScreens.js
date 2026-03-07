@@ -13,7 +13,7 @@ import {
 import { CommonActions } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { sendPasswordReset } from "../auth/authHandlers";
+import { sendPasswordReset, signOutUser } from "../auth/authHandlers";
 
 export function ForgotPasswordScreen({
   navigation,
@@ -153,7 +153,7 @@ export function ResetPasswordScreen({
       completePasswordResetFlow();
 
       // End recovery session cleanly
-      await supabase.auth.signOut();
+      await signOutUser({ supabase });
 
       navigation.dispatch(
         CommonActions.reset({
@@ -181,7 +181,7 @@ export function ResetPasswordScreen({
 
   const handleCancel = useCallback(async () => {
     completePasswordResetFlow();
-    await supabase.auth.signOut();
+    await signOutUser({ supabase });
     navigation.dispatch(
       CommonActions.reset({
         index: 0,

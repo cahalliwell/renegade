@@ -28,7 +28,6 @@ import {
   Share,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as ExpoLinking from "expo-linking";
 import {
   CommonActions,
   DefaultTheme,
@@ -70,6 +69,9 @@ import { createClient } from "@supabase/supabase-js";
 import LoginScreen from "./src/screens/LoginScreen";
 import { createAuthStyles } from "./src/auth/authStyles";
 import AuthStackScreen, { linkingConfig } from "./src/auth/AuthStackScreen";
+import { AuthContext, useAuth } from "./src/auth/authContext";
+import useAuthLifecycle from "./src/auth/useAuthLifecycle";
+import { fetchAuthProfileByUserId, signOutUser } from "./src/auth/authHandlers";
 
 let Purchases = null;
 let PurchasesLogLevel = null;
@@ -1625,16 +1627,6 @@ function useGuidanceOnce(storageKey, options = {}) {
 
 // 🗒️ Journal context
 const JournalContext = createContext();
-
-const AuthContext = createContext(null);
-
-function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error("useAuth must be used within an AuthContext provider");
-  }
-  return ctx;
-}
 
 const safeParseJSON = (value, fallback = {}) => {
   if (!value) return fallback;
@@ -5858,7 +5850,7 @@ function SettingsScreen({ navigation }) {
         throw new Error("Unexpected response from the server.");
       }
 
-      await supabase.auth.signOut();
+      await signOutUser({ supabase });
       navigation.dispatch(
         CommonActions.reset({
           index: 0,
@@ -6155,15 +6147,8 @@ export default function App() {
     }
     setLoadingProfile(true);
     try {
-      const { data, error } = await supabase
-        .from("Profiles")
-        .select("display_name,email,is_premium,subscription_tier")
-        .eq("id", userId)
-        .maybeSingle();
-      if (error) {
-        console.log("Profile fetch error:", error.message);
-      }
-      setProfile(data ?? null);
+      const data = await fetchAuthProfileByUserId({ supabase, userId });
+      setProfile(data);
     } catch (error) {
       console.log("Profile fetch error:", error?.message || error);
       setProfile(null);
@@ -6176,118 +6161,12 @@ export default function App() {
     setPasswordResetRequested(false);
   }, []);
 
-  useEffect(() => {
-    let isMounted = true;
-    console.log("🔐 Auth hydration: fetching initial session...");
-    supabase.auth
-      .getSession()
-      .then(({ data }) => {
-        if (!isMounted) return;
-        console.log(
-          "🔐 Auth hydration result:",
-          data?.session ? "session restored" : "no session",
-          data?.session?.user ? "user present" : "no user"
-        );
-        setSession(data?.session ?? null);
-        setAuthReady(true);
-        console.log("🔐 Auth hydration complete: authReady set to true");
-      })
-      .catch((error) => {
-        console.log("Session fetch error:", error?.message || error);
-        if (isMounted) {
-          setAuthReady(true);
-          console.log("🔐 Auth hydration failed: authReady set to true");
-        }
-      });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, newSession) => {
-      console.log(
-        "🔐 Auth state change:",
-        event,
-        "session?",
-        !!newSession,
-        "user?",
-        !!newSession?.user
-      );
-      // Prevent unwanted logout on app launch while still allowing explicit sign-out
-      if (event === "SIGNED_OUT") {
-        setSession(null);
-      } else if (newSession !== null) {
-        setSession(newSession);
-      }
-
-      // Auth is now ready regardless of event type
-      setAuthReady(true);
-
-      // Preserve password recovery logic
-      if (event === "PASSWORD_RECOVERY") {
-        setPasswordResetRequested(true);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      subscription?.unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    const processResetLink = async (url) => {
-      if (!url || !url.includes("/auth/reset")) return;
-      console.log("🔗 Incoming reset link:", url);
-      // Move into the reset flow immediately so the Reset screen is presented even while the session hydrates.
-      setPasswordResetRequested(true);
-      const { data, error } = await supabase.auth.getSessionFromUrl({ url, storeSession: true });
-
-      if (error) {
-        console.log("❌ Supabase password recovery failed:", error.message);
-        setPasswordResetRequested(false);
-        Alert.alert(
-          "Password reset",
-          "We couldn't open that link. Please request a new reset email."
-        );
-        return;
-      }
-
-      if (data?.session) {
-        setSession(data.session);
-      }
-      console.log("✅ Supabase password recovery session established");
-    };
-
-    const processAuthCallbackLink = async (url) => {
-      if (!url || !url.includes("auth/callback")) return;
-      console.log("🔗 Handling auth callback link:", url);
-      const { error } = await supabase.auth.getSessionFromUrl({ url, storeSession: true });
-      if (error) {
-        console.log("Auth callback link error:", error?.message || error);
-      }
-    };
-
-    const sub = Linking.addEventListener("url", async ({ url }) => {
-      await processResetLink(url);
-      await processAuthCallbackLink(url);
-    });
-
-    const resolveInitialUrl = async () => {
-      try {
-        const initialUrl = await ExpoLinking.getInitialURL();
-        if (initialUrl) {
-          console.log("🔗 Initial link:", initialUrl);
-          await processResetLink(initialUrl);
-          await processAuthCallbackLink(initialUrl);
-        }
-      } catch (error) {
-        console.log("Initial URL error:", error?.message || error);
-      }
-    };
-
-    resolveInitialUrl();
-
-    return () => sub.remove();
-  }, []);
+  useAuthLifecycle({
+    supabase,
+    setSession,
+    setAuthReady,
+    setPasswordResetRequested,
+  });
 
   useEffect(() => {
     if (!authReady) return;
@@ -6295,7 +6174,7 @@ export default function App() {
   }, [authReady, fetchProfile]);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    await signOutUser({ supabase });
   }, []);
 
   const revenueCatValue = useRevenueCatController(session?.user?.id ?? null, authReady);
