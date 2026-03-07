@@ -68,9 +68,8 @@ import Svg, {
 } from "react-native-svg";
 import { createClient } from "@supabase/supabase-js";
 import LoginScreen from "./src/screens/LoginScreen";
-import ForgotPasswordScreen from "./src/screens/ForgotPasswordScreen";
-import ResetPasswordScreen from "./src/screens/ResetPasswordScreen";
 import { createAuthStyles } from "./src/auth/authStyles";
+import AuthStackScreen, { linkingConfig } from "./src/auth/AuthStackScreen";
 
 let Purchases = null;
 let PurchasesLogLevel = null;
@@ -1495,7 +1494,6 @@ const stylesInsights = StyleSheet.create({
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 const JournalStack = createNativeStackNavigator();
-const AuthStack = createNativeStackNavigator();
 
 function randomLine() {
   const roll = Math.floor(Math.random() * 4) + 6;
@@ -6075,65 +6073,6 @@ const navTheme = {
   colors: { ...DefaultTheme.colors, background: "transparent" },
 };
 
-const linkingConfig = {
-  prefixes: ["ichinginsightsai://"],
-  config: {
-    screens: {
-      ResetPassword: "auth/reset",
-    },
-  },
-};
-
-function AuthStackScreen({ passwordResetRequested = false, completePasswordResetFlow }) {
-  return (
-    <AuthStack.Navigator
-      screenOptions={{ headerShown: false }}
-      initialRouteName={passwordResetRequested ? "ResetPassword" : "Login"}
-    >
-      <AuthStack.Screen name="Login">
-        {(props) => (
-          <LoginScreen
-            {...props}
-            supabase={supabase}
-            loginGradientColors={loginGradientColors}
-            loginStyles={loginStyles}
-            palette={palette}
-            theme={theme}
-            GoldButton={GoldButton}
-          />
-        )}
-      </AuthStack.Screen>
-      <AuthStack.Screen name="ForgotPassword">
-        {(props) => (
-          <ForgotPasswordScreen
-            {...props}
-            supabase={supabase}
-            loginGradientColors={loginGradientColors}
-            loginStyles={loginStyles}
-            palette={palette}
-            theme={theme}
-            GoldButton={GoldButton}
-          />
-        )}
-      </AuthStack.Screen>
-      <AuthStack.Screen name="ResetPassword">
-        {(props) => (
-          <ResetPasswordScreen
-            {...props}
-            supabase={supabase}
-            completePasswordResetFlow={completePasswordResetFlow}
-            loginGradientColors={loginGradientColors}
-            loginStyles={loginStyles}
-            palette={palette}
-            theme={theme}
-            GoldButton={GoldButton}
-          />
-        )}
-      </AuthStack.Screen>
-    </AuthStack.Navigator>
-  );
-}
-
 function HomeStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -6429,6 +6368,12 @@ export default function App() {
                 <AuthStackScreen
                   passwordResetRequested={passwordResetRequested}
                   completePasswordResetFlow={completePasswordResetFlow}
+                  supabase={supabase}
+                  loginGradientColors={loginGradientColors}
+                  loginStyles={loginStyles}
+                  palette={palette}
+                  theme={theme}
+                  GoldButton={GoldButton}
                 />
               ) : (
                 <MainTabs />
