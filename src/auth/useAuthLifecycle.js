@@ -105,8 +105,8 @@ export default function useAuthLifecycle({
       try {
         const { session, error } = await establishSessionFromLink(url);
 
-        if (error || !session) {
-          console.log("❌ Supabase password recovery failed:", error?.message || "missing session");
+        if (error) {
+          console.log("❌ Supabase password recovery failed:", error?.message || error);
           setPasswordResetRequested(false);
           Alert.alert(
             "Password reset",
@@ -115,8 +115,20 @@ export default function useAuthLifecycle({
           return;
         }
 
-        setSession(session);
-        console.log("✅ Supabase password recovery session established");
+        if (session) {
+          setSession(session);
+          console.log("✅ Supabase password recovery session established");
+          return;
+        }
+
+        const { data: latest } = await supabase.auth.getSession();
+        if (latest?.session) {
+          setSession(latest.session);
+          console.log("✅ Supabase password recovery session established (from current session)");
+          return;
+        }
+
+        console.log("⚠️ Recovery link processed but no session yet; waiting for auth state change");
       } catch (error) {
         console.log("❌ Supabase password recovery failed:", error?.message || error);
         setPasswordResetRequested(false);
