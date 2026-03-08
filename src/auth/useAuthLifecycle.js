@@ -24,6 +24,11 @@ const parseUrlParams = (url) => {
   };
 };
 
+const isRecoverableSessionParseError = (error) => {
+  const message = `${error?.message || ""}`.toLowerCase();
+  return message.includes("auth session missing") || message.includes("session missing");
+};
+
 export default function useAuthLifecycle({
   supabase,
   setSession,
@@ -94,7 +99,13 @@ export default function useAuthLifecycle({
       const path = `${parsed?.path || ""}`;
       const params = parseUrlParams(url);
       const type = params?.type;
-      return path.includes("auth/reset") || type === "recovery" || url.includes("/auth/reset");
+      return (
+        path.includes("auth/reset") ||
+        path.includes("auth/callback") ||
+        type === "recovery" ||
+        url.includes("/auth/reset") ||
+        url.includes("auth/callback")
+      );
     };
 
     const establishSessionFromLink = async (url) => {
@@ -104,7 +115,7 @@ export default function useAuthLifecycle({
       if (fromUrl?.data?.session) {
         return { session: fromUrl.data.session, error: null };
       }
-      if (fromUrl?.error) {
+      if (fromUrl?.error && !isRecoverableSessionParseError(fromUrl.error)) {
         latestError = fromUrl.error;
       }
 
@@ -120,7 +131,7 @@ export default function useAuthLifecycle({
         if (setRes?.data?.session) {
           return { session: setRes.data.session, error: null };
         }
-        if (setRes?.error) {
+        if (setRes?.error && !isRecoverableSessionParseError(setRes.error)) {
           latestError = setRes.error;
         }
       }
@@ -131,7 +142,7 @@ export default function useAuthLifecycle({
         if (exchanged?.data?.session) {
           return { session: exchanged.data.session, error: null };
         }
-        if (exchanged?.error) {
+        if (exchanged?.error && !isRecoverableSessionParseError(exchanged.error)) {
           latestError = exchanged.error;
         }
       }
@@ -146,7 +157,7 @@ export default function useAuthLifecycle({
         if (verified?.data?.session) {
           return { session: verified.data.session, error: null };
         }
-        if (verified?.error) {
+        if (verified?.error && !isRecoverableSessionParseError(verified.error)) {
           latestError = verified.error;
         }
       }
@@ -187,7 +198,7 @@ export default function useAuthLifecycle({
           return;
         }
 
-        console.log("⚠️ Recovery link processed but no session yet; waiting for auth state change");
+        console.log("⚠️ Recovery link processed; waiting for auth state change/session hydration");
       } catch (error) {
         console.log("❌ Supabase password recovery failed:", error?.message || error);
         setPasswordResetRequested(false);
