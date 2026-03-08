@@ -32,10 +32,6 @@ export default function LoginScreen({
   const [verificationDialogVisible, setVerificationDialogVisible] = useState(false);
   const [pendingEmail, setPendingEmail] = useState("");
 
-  const handleForgotPasswordPress = useCallback(() => {
-    navigation.navigate("ForgotPassword");
-  }, [navigation]);
-
   const handleAuth = async (type) => {
     if (!email.trim() || !password) {
       Alert.alert("Missing information", "Please enter both email and password.");
@@ -119,9 +115,6 @@ export default function LoginScreen({
                   Use the credentials associated with your Supabase profile.
                 </Text>
 
-                <Pressable onPress={handleForgotPasswordPress} style={{ marginBottom: theme.space(1.5) }}>
-                  <Text style={[loginStyles.helperText, { color: palette.goldDeep }]}>Forgot Password?</Text>
-                </Pressable>
 
                 <View style={loginStyles.buttonRow}>
                   <Pressable

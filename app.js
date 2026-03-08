@@ -6137,7 +6137,6 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [authReady, setAuthReady] = useState(false);
-  const [passwordResetRequested, setPasswordResetRequested] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     const userId = session?.user?.id;
@@ -6157,15 +6156,11 @@ export default function App() {
     }
   }, [session?.user?.id]);
 
-  const completePasswordResetFlow = useCallback(() => {
-    setPasswordResetRequested(false);
-  }, []);
 
   useAuthLifecycle({
     supabase,
     setSession,
     setAuthReady,
-    setPasswordResetRequested,
   });
 
   useEffect(() => {
@@ -6209,8 +6204,6 @@ export default function App() {
       subscriptionTier: resolvedSubscriptionTier,
       revenueCatCustomerInfo: revenueCatValue?.customerInfo ?? null,
       revenueCatEntitlements: revenueCatValue?.activeEntitlementIds ?? [],
-      passwordResetRequested,
-      completePasswordResetFlow,
     }),
     [
       session,
@@ -6223,14 +6216,12 @@ export default function App() {
       resolvedSubscriptionTier,
       revenueCatValue?.customerInfo,
       revenueCatValue?.activeEntitlementIds,
-      passwordResetRequested,
-      completePasswordResetFlow,
     ]
   );
 
   if (!marcellusLoaded || !loraLoaded || !authReady) return null;
 
-  const navigationKey = passwordResetRequested ? "reset-flow" : session ? "main" : "auth";
+  const navigationKey = session ? "main" : "auth";
 
   return (
     <SafeAreaProvider>
@@ -6243,10 +6234,8 @@ export default function App() {
               theme={navTheme}
               linking={linkingConfig}
             >
-              {passwordResetRequested || !session ? (
+              {!session ? (
                 <AuthStackScreen
-                  passwordResetRequested={passwordResetRequested}
-                  completePasswordResetFlow={completePasswordResetFlow}
                   supabase={supabase}
                   loginGradientColors={loginGradientColors}
                   loginStyles={loginStyles}

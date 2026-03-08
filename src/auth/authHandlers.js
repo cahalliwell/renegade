@@ -16,14 +16,6 @@ export async function handleAuthAction({ type, email, password, supabase }) {
   if (error) throw error;
 }
 
-export async function sendPasswordReset({ email, supabase }) {
-  const trimmed = email.trim();
-  const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
-    redirectTo: "ichinginsightsai://auth/reset",
-  });
-  if (error) throw error;
-}
-
 export async function fetchAuthProfileByUserId({ supabase, userId }) {
   const { data, error } = await supabase
     .from("Profiles")
