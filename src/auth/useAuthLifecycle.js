@@ -2,6 +2,28 @@ import { useEffect } from "react";
 import { Alert, Linking } from "react-native";
 import * as ExpoLinking from "expo-linking";
 
+const parseUrlParams = (url) => {
+  const queryParams = ExpoLinking.parse(url)?.queryParams || {};
+  const hash = typeof url === "string" && url.includes("#") ? url.split("#")[1] : "";
+  const hashParams = hash
+    ? hash
+        .split("&")
+        .map((part) => part.split("="))
+        .reduce((acc, [rawKey, rawValue]) => {
+          if (!rawKey) return acc;
+          const key = decodeURIComponent(rawKey);
+          const value = decodeURIComponent(rawValue || "");
+          acc[key] = value;
+          return acc;
+        }, {})
+    : {};
+
+  return {
+    ...queryParams,
+    ...hashParams,
+  };
+};
+
 export default function useAuthLifecycle({
   supabase,
   setSession,
@@ -70,29 +92,73 @@ export default function useAuthLifecycle({
       if (!url) return false;
       const parsed = ExpoLinking.parse(url);
       const path = `${parsed?.path || ""}`;
-      const type = parsed?.queryParams?.type;
+      const params = parseUrlParams(url);
+      const type = params?.type;
       return path.includes("auth/reset") || type === "recovery" || url.includes("/auth/reset");
     };
 
     const establishSessionFromLink = async (url) => {
-      const fromUrl = await supabase.auth.getSessionFromUrl({ url, storeSession: true });
+      let latestError = null;
 
+      const fromUrl = await supabase.auth.getSessionFromUrl({ url, storeSession: true });
       if (fromUrl?.data?.session) {
         return { session: fromUrl.data.session, error: null };
       }
+      if (fromUrl?.error) {
+        latestError = fromUrl.error;
+      }
 
-      const code = ExpoLinking.parse(url)?.queryParams?.code;
+      const params = parseUrlParams(url);
+
+      const accessToken = params?.access_token;
+      const refreshToken = params?.refresh_token;
+      if (typeof accessToken === "string" && typeof refreshToken === "string") {
+        const setRes = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (setRes?.data?.session) {
+          return { session: setRes.data.session, error: null };
+        }
+        if (setRes?.error) {
+          latestError = setRes.error;
+        }
+      }
+
+      const code = params?.code;
       if (typeof code === "string" && code.length > 0) {
         const exchanged = await supabase.auth.exchangeCodeForSession(code);
-        return {
-          session: exchanged?.data?.session ?? null,
-          error: exchanged?.error ?? fromUrl?.error ?? null,
-        };
+        if (exchanged?.data?.session) {
+          return { session: exchanged.data.session, error: null };
+        }
+        if (exchanged?.error) {
+          latestError = exchanged.error;
+        }
+      }
+
+      const tokenHash = params?.token_hash;
+      const type = params?.type;
+      if (type === "recovery" && typeof tokenHash === "string" && tokenHash.length > 0) {
+        const verified = await supabase.auth.verifyOtp({
+          type: "recovery",
+          token_hash: tokenHash,
+        });
+        if (verified?.data?.session) {
+          return { session: verified.data.session, error: null };
+        }
+        if (verified?.error) {
+          latestError = verified.error;
+        }
+      }
+
+      const latest = await supabase.auth.getSession();
+      if (latest?.data?.session) {
+        return { session: latest.data.session, error: null };
       }
 
       return {
         session: null,
-        error: fromUrl?.error ?? null,
+        error: latestError,
       };
     };
 
@@ -105,6 +171,12 @@ export default function useAuthLifecycle({
       try {
         const { session, error } = await establishSessionFromLink(url);
 
+        if (session) {
+          setSession(session);
+          console.log("✅ Supabase password recovery session established");
+          return;
+        }
+
         if (error) {
           console.log("❌ Supabase password recovery failed:", error?.message || error);
           setPasswordResetRequested(false);
@@ -112,19 +184,6 @@ export default function useAuthLifecycle({
             "Password reset",
             "We couldn't open that link. Please request a new reset email."
           );
-          return;
-        }
-
-        if (session) {
-          setSession(session);
-          console.log("✅ Supabase password recovery session established");
-          return;
-        }
-
-        const { data: latest } = await supabase.auth.getSession();
-        if (latest?.session) {
-          setSession(latest.session);
-          console.log("✅ Supabase password recovery session established (from current session)");
           return;
         }
 
